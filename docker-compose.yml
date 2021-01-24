@@ -1,0 +1,133 @@
+version: "3"
+services:
+  nginx:
+    image: nginx:latest
+    container_name: ${APP_NAME:?err}-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - "./app:/usr/share/nginx/html/"
+      - "./config/nginx:/etc/nginx/conf.d"
+    links:
+      - "mariadb:database"
+    networks:
+      app_net:
+        ipv4_address: 172.20.0.5
+
+  mariadb:
+      image: mariadb/server:10.3
+      container_name: ${APP_NAME:?err}-bdd
+      restart: always
+      ports:
+        - 3306:3306
+      environment:
+        MYSQL_ROOT_PASSWORD: root
+        MYSQL_DATABASE: devops
+        MYSQL_USER: test
+        MYSQL_PASSWORD: test
+      volumes:
+        - ./sql:/var/lib/mysql
+      networks:
+        app_net:
+          ipv4_address: 172.20.0.2
+
+  nodejs:
+    container_name: ${APP_NAME:?err}-nodejs
+    build: .
+    restart: always
+    ports:
+      - "6060:6060"
+    depends_on:
+      - mariadb
+    command: sh -c "/wait && npm start"
+    environment:
+      - WAIT_HOSTS=mariadb:3306
+      - WAIT_HOSTS_TIMEOUT=3000
+      - WAIT_SLEEP_INTERVAL=30
+      - WAIT_HOST_CONNECT_TIMEOUT=300
+    networks:
+      app_net:
+        ipv4_address: 172.20.0.4
+
+  app:
+      image: python_master:latest
+      container_name: ${APP_NAME:?err}-python-master
+      restart: always
+      build: ./app/py_master/
+      ports:
+          - 5001:5000
+      depends_on:
+          - mariadb
+      networks:
+          app_net:
+              ipv4_address: 172.20.0.3
+
+  python_unite1:
+    image: python_slave1:latest
+    build: ./app/py_script/u1
+    restart: always
+    container_name: ${APP_NAME:?err}-python-slave1
+    networks:
+      app_net:
+        ipv4_address: 172.20.0.11
+
+  python_unite2:
+    image: python_slave2:latest
+    build: ./app/py_script/u2
+    restart: always
+    container_name: ${APP_NAME:?err}-python-slave2
+    networks:
+      app_net:
+        ipv4_address: 172.20.0.12
+
+  python_unite3:
+    image: python_slave3:latest
+    build: ./app/py_script/u3
+    restart: always
+    container_name: ${APP_NAME:?err}-python-slave3
+    networks:
+      app_net:
+        ipv4_address: 172.20.0.13
+
+  python_unite4:
+    image: python_slave4:latest
+    build: ./app/py_script/u4
+    restart: always
+    container_name: ${APP_NAME:?err}-python-slave4
+    networks:
+      app_net:
+        ipv4_address: 172.20.0.14
+
+  python_unite5:
+    image: python_slave5:latest
+    build: ./app/py_script/u5
+    restart: always
+    container_name: ${APP_NAME:?err}-python-slave5
+    networks:
+      app_net:
+        ipv4_address: 172.20.0.15
+
+  python_save:
+      image: python_save:latest
+      container_name: ${APP_NAME:?err}-python-save
+      restart: always
+      build: ./app/py_save/
+      ports:
+          - 5021:5000
+      networks:
+          app_net:
+              ipv4_address: 172.20.0.21
+
+
+networks:
+  app_net:
+    driver: bridge
+    enable_ipv6: false
+    ipam:
+      driver: default
+      config:
+      - subnet: 172.20.0.0/24
+        gateway: 172.20.0.1
+
+volumes:
+  dbdata:
